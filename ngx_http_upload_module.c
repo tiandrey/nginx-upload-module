@@ -1035,7 +1035,12 @@ static ngx_int_t ngx_http_upload_start_handler(ngx_http_upload_ctx_t *u) { /* {{
                 (void) ngx_sprintf(file->name.data + path->name.len + 1 + path->len,
                                    "%010uD%Z", n);
 
-                ngx_create_hashed_filename(path, file->name.data, file->name.len);
+		/* AVITO specific. Save origin filename + upload to URI subdir */
+                (void) ngx_sprintf(file->name.data,
+                                   "%s%V%V\0", path->name.data, &(r->uri), &u->file_name);
+		file->name.len = path->name.len + r->uri.len + ngx_utf8_length(u->file_name.data, u->file_name.len);
+		file->name.data[file->name.len] = '\0';
+/*                ngx_create_hashed_filename(path, file->name.data, file->name.len); */
 
                 ngx_log_debug1(NGX_LOG_DEBUG_CORE, file->log, 0,
                                "hashed path: %s", file->name.data);

@@ -953,7 +953,7 @@ static ngx_int_t ngx_http_upload_start_handler(ngx_http_upload_ctx_t *u) { /* {{
 
     ngx_file_t  *file = &u->output_file;
     ngx_path_t  *path = ulcf->store_path;
-    uint32_t    n;
+    //uint32_t    n;
     ngx_uint_t  i;
     ngx_int_t   rc;
     ngx_err_t   err;
@@ -971,18 +971,16 @@ static ngx_int_t ngx_http_upload_start_handler(ngx_http_upload_ctx_t *u) { /* {{
         if(u->cln == NULL)
             return NGX_UPLOAD_NOMEM;
 
-        file->name.len = path->name.len + 1 + path->len + (u->session_id.len != 0 ? u->session_id.len : 10);
-
-        file->name.data = ngx_palloc(u->request->pool, file->name.len + 1);
-
-        if(file->name.data == NULL)
-            return NGX_UPLOAD_NOMEM;
-
-        ngx_memcpy(file->name.data, path->name.data, path->name.len);
-
-        file->log = r->connection->log;
 
         if(u->session_id.len != 0) {
+			file->name.len = path->name.len + 1 + path->len + (u->session_id.len != 0 ? u->session_id.len : 10);
+			file->name.data = ngx_palloc(u->request->pool, file->name.len + 1);
+			if(file->name.data == NULL)
+				return NGX_UPLOAD_NOMEM;
+			ngx_memcpy(file->name.data, path->name.data, path->name.len);
+			file->log = r->connection->log;
+
+
             (void) ngx_sprintf(file->name.data + path->name.len + 1 + path->len,
                                "%V%Z", &u->session_id);
 
@@ -1027,42 +1025,34 @@ static ngx_int_t ngx_http_upload_start_handler(ngx_http_upload_ctx_t *u) { /* {{
             }
 
             file->offset = u->content_range_n.start;
-        }
-        else{
-            for(;;) {
-                n = (uint32_t) ngx_next_temp_number(0);
-
-                (void) ngx_sprintf(file->name.data + path->name.len + 1 + path->len,
-                                   "%010uD%Z", n);
-
+        } else {
 		/* AVITO specific. Save origin filename + upload to URI subdir */
-                (void) ngx_sprintf(file->name.data,
-                                   "%s%V%V\0", path->name.data, &(r->uri), &u->file_name);
-		file->name.len = path->name.len + r->uri.len + ngx_utf8_length(u->file_name.data, u->file_name.len);
-		file->name.data[file->name.len] = '\0';
-/*                ngx_create_hashed_filename(path, file->name.data, file->name.len); */
+			file->name.len = path->name.len + r->uri.len + ngx_utf8_length(u->file_name.data, u->file_name.len) + 1;
+			file->name.data = ngx_palloc(u->request->pool, file->name.len + 1);
+			if(file->name.data == NULL)	return NGX_UPLOAD_NOMEM;
+            (void) ngx_sprintf(file->name.data,"%s%V%V%Z", path->name.data, &(r->uri), &u->file_name);
 
-                ngx_log_debug1(NGX_LOG_DEBUG_CORE, file->log, 0,
-                               "hashed path: %s", file->name.data);
+			file->log = r->connection->log;
+			
+//          for(;;) {
+//             n = (uint32_t) ngx_next_temp_number(0);
+//             (void) ngx_sprintf(file->name.data + path->name.len + 1 + path->len, "%010uD%Z", n);
+//             ngx_create_hashed_filename(path, file->name.data, file->name.len); 
 
-                file->fd = ngx_open_tempfile(file->name.data, 1, ulcf->store_access);
-
-                if (file->fd != NGX_INVALID_FILE) {
-                    file->offset = 0;
-                    break;
-                }
-
-                err = ngx_errno;
-
-                if (err == NGX_EEXIST) {
-                    n = (uint32_t) ngx_next_temp_number(1);
-                    continue;
-                }
-
-                ngx_log_error(NGX_LOG_ERR, r->connection->log, ngx_errno,
-                              "failed to create output file \"%V\" for \"%V\"", &file->name, &u->file_name);
-                return NGX_UPLOAD_IOERROR;
-            }
+			ngx_log_debug1(NGX_LOG_DEBUG_CORE, file->log, 0, "hashed path: %s", file->name.data);
+            file->fd = ngx_open_tempfile(file->name.data, 1, ulcf->store_access);
+            if (file->fd == NGX_INVALID_FILE) {
+				err = ngx_errno;
+				//if (err == NGX_EEXIST) {
+					//n = (uint32_t) ngx_next_temp_number(1);
+					//continue;
+				//}
+				ngx_log_error(NGX_LOG_ERR, r->connection->log, ngx_errno,
+							  "failed to create output file \"%V\" for \"%V\"", &file->name, &u->file_name);
+				return NGX_UPLOAD_IOERROR;
+			}
+          // }
+            file->offset = 0;
         }
 
         u->cln->handler = ngx_upload_cleanup_handler;

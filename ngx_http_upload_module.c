@@ -1052,7 +1052,8 @@ static ngx_int_t ngx_http_upload_start_handler(ngx_http_upload_ctx_t *u) { /* {{
 //             ngx_create_hashed_filename(path, file->name.data, file->name.len); 
 
 			ngx_log_debug1(NGX_LOG_DEBUG_CORE, file->log, 0, "hashed path: %s", file->name.data);
-            file->fd = ngx_open_tempfile(file->name.data, 1, ulcf->store_access);
+            //file->fd = ngx_open_tempfile(file->name.data, 1, ulcf->store_access);
+            file->fd = ngx_open_file(file->name.data, NGX_FILE_WRONLY, NGX_FILE_TRUNCATE, ulcf->store_access);
             if (file->fd == NGX_INVALID_FILE) {
 				//err = ngx_errno;
 				//if (err == NGX_EEXIST) {

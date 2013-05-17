@@ -2879,7 +2879,12 @@ ngx_http_do_read_upload_client_request_body(ngx_http_request_t *r)
         ngx_del_timer(c->read);
     }
 
-    rc = ngx_http_process_request_body(r, rb->bufs->next ? rb->bufs->next : rb->bufs);
+   if (first==1) {
+		rc = ngx_http_process_request_body(r, rb->bufs);
+		first=0;
+	} else {
+		rc = ngx_http_process_request_body(r, rb->bufs->next ? rb->bufs->next : rb->bufs);
+	}
 
     switch(rc) {
         case NGX_OK:

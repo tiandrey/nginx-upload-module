@@ -811,7 +811,8 @@ static ngx_int_t ngx_http_upload_body_handler(ngx_http_request_t *r) { /* {{{ */
 
             b->in_file = 0;
             b->memory = 1;
-            b->last_buf = b->last_in_chain = b->flush = 1;
+            b->last_buf = b->last_in_chain = 1;
+            b->flush = 0;
 
             b->start = b->pos = ctx->range_header_buffer;
             b->last = ctx->range_header_buffer_pos;
@@ -2761,16 +2762,10 @@ ngx_http_do_read_upload_client_request_body(ngx_http_request_t *r)
 
     ngx_log_debug0(NGX_LOG_DEBUG_HTTP, c->log, 0,
                    "http read client request body");
-	u_char first=1;
     for ( ;; ) {
         for ( ;; ) {
             if (rb->buf->last == rb->buf->end) {
-               if (first==1) {
-					rc = ngx_http_process_request_body(r, rb->bufs);
-					first=0;
-				} else {
-					rc = ngx_http_process_request_body(r, rb->bufs->next ? rb->bufs->next : rb->bufs);
-				}
+				rc = ngx_http_process_request_body(r, rb->bufs->buf->flush==1 && rb->bufs->next ? rb->bufs->next : rb->bufs);
 
                 switch(rc) {
                     case NGX_OK:
@@ -2879,12 +2874,7 @@ ngx_http_do_read_upload_client_request_body(ngx_http_request_t *r)
         ngx_del_timer(c->read);
     }
 
-   if (first==1) {
-		rc = ngx_http_process_request_body(r, rb->bufs);
-		first=0;
-	} else {
-		rc = ngx_http_process_request_body(r, rb->bufs->next ? rb->bufs->next : rb->bufs);
-	}
+	rc = ngx_http_process_request_body(r, rb->bufs->buf->flush==1 && rb->bufs->next ? rb->bufs->next : rb->bufs);
 
     switch(rc) {
         case NGX_OK:
@@ -2913,6 +2903,7 @@ ngx_http_process_request_body(ngx_http_request_t *r, ngx_chain_t *body)
 
     // Feed all the buffers into data handler
     while(body) {
+		body->buf->flush=1;
         rc = u->data_handler(u, body->buf->pos, body->buf->last);
 
         if(rc != NGX_OK)

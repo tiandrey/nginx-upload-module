@@ -1030,7 +1030,7 @@ static ngx_int_t ngx_http_upload_start_handler(ngx_http_upload_ctx_t *u) { /* {{
         } else {
 		/* AVITO specific. Save origin filename + upload to URI subdir */
 			file->name.len = path->name.len + r->uri.len + ngx_utf8_length(u->file_name.data, u->file_name.len) + 1;
-			file->name.data = ngx_palloc(u->request->pool, file->name.len + 1);
+			file->name.data = ngx_palloc(u->request->pool, file->name.len);
 			if(file->name.data == NULL)	return NGX_UPLOAD_NOMEM;
             (void) ngx_sprintf(file->name.data,"%s%V%V%Z", path->name.data, &(r->uri), &u->file_name);
 
@@ -1045,14 +1045,15 @@ static ngx_int_t ngx_http_upload_start_handler(ngx_http_upload_ctx_t *u) { /* {{
             //file->fd = ngx_open_tempfile(file->name.data, 1, ulcf->store_access);
             file->fd = ngx_open_file(file->name.data, NGX_FILE_WRONLY, NGX_FILE_TRUNCATE, ulcf->store_access);
             if (file->fd == NGX_INVALID_FILE) {
-				//err = ngx_errno;
-				//if (err == NGX_EEXIST) {
-					//n = (uint32_t) ngx_next_temp_number(1);
-					//continue;
-				//}
-				ngx_log_error(NGX_LOG_ERR, r->connection->log, ngx_errno,
+				(void) ngx_sprintf(file->name.data,"%s%V%Z", path->name.data, &(r->uri));
+				ngx_create_full_path(file->name.data, 0755);
+				(void) ngx_sprintf(file->name.data,"%s%V%V%Z", path->name.data, &(r->uri), &u->file_name);
+				file->fd = ngx_open_file(file->name.data, NGX_FILE_WRONLY, NGX_FILE_TRUNCATE, ulcf->store_access);
+				if (file->fd == NGX_INVALID_FILE) {
+					ngx_log_error(NGX_LOG_ERR, r->connection->log, ngx_errno,
 							  "failed to create output file \"%V\" for \"%V\"", &file->name, &u->file_name);
-				return NGX_UPLOAD_IOERROR;
+					return NGX_UPLOAD_IOERROR;
+				}
 			}
           // }
             file->offset = 0;
